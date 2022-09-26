@@ -8,6 +8,7 @@
 /////////////////////////////////////////////////////////////////////
 
 const fs = require('fs');
+const { off } = require('process');
 const utilities = require('../utilities.js');
 
 
@@ -18,6 +19,7 @@ class Repository {
         this.objectsName = model.getClassName() + 's';
         this.objectsFile = `./data/${this.objectsName}.json`;
         this.bindExtraDataMethod = null;
+        this.sortFields = null;
         this.updateResult = {
             ok: 0,
             conflict: 1,
@@ -155,16 +157,14 @@ class Repository {
             });
             // todo filter
             // todo sort
+            filteredAndSortedObject = objectsList;
             if(searchKeys.length >0){
-                objectsList.forEach(object => {
-                    if(this.filtre(object , searchKeys)){
-                        filteredAndSortedObject.push(object);
-                    }
-                });
-               
+                filteredAndSortedObject = this.search(filteredAndSortedObject , searchKeys);
+                
             }
+            
             if(sortKeys.length > 0){
-                filteredAndSortedObject = this.sortObject(objectsList , sortKeys);
+                filteredAndSortedObject = this.sortObject(filteredAndSortedObject , sortKeys);
             }
            
             
@@ -172,30 +172,35 @@ class Repository {
         }
         return objectsList;
     }
-    filtre(object , searchkeys){
-        searchkeys.forEach(searchKey => {
-            if(!this.valueMatch(object , searchKey)){
-                return false;
+    search(filteredAndSortedObject,searchKeys){
+        let temp =[]
+       temp= filteredAndSortedObject.filter((item)=>{
+            for(let key in searchKeys){
+                if(item[key] == undefined || !this.filtre(item , searchKeys[key])){
+                    return false
+                }
+                return true
             }
-        });
-        return true;
+            
+        })
+        return temp;
+        
+        
+    }
+    filtre(object , searchKey){
+        return this.valueMatch(object[searchKey.key] , searchKey.value);
     }
     sortObject(objectsList , sortKeys){
         let tempTab = null
-        sortKeys.forEach(sortKey => {
-            if(tempTab == null){
-                tempTab = objectsList;
-            }
-            tempTab = tempTab.sort((a,b)=> {
-                if(sortKey.asc){
-                   return a.key > b.key;
-                }
-                else{
-                    return a.key < b.key;
-                }
-            });     
-                 
-        });
+        this.sortFields = sortKeys;
+            
+        if(tempTab == null){
+            tempTab = objectsList;
+        }
+            
+        tempTab = tempTab.sort((a,b)=> {
+            return this.compare(a,b);
+        });   
         return tempTab
     }
     valueMatch(value, searchValue) {
@@ -222,12 +227,13 @@ class Repository {
     compare(itemX, itemY) {
         let fieldIndex = 0;
         let max = this.sortFields.length;
+        
         do {
             let result = 0;
-            if (this.sortFields[fieldIndex].ascending)
-                result = this.innerCompare(itemX[this.sortFields[fieldIndex].name], itemY[this.sortFields[fieldIndex].name]);
+            if (this.sortFields[fieldIndex].asc)
+                result = this.innerCompare(itemX[this.sortFields[fieldIndex].key], itemY[this.sortFields[fieldIndex].key]);
             else
-                result = this.innerCompare(itemY[this.sortFields[fieldIndex].name], itemX[this.sortFields[fieldIndex].name]);
+                result = this.innerCompare(itemY[this.sortFields[fieldIndex].key], itemX[this.sortFields[fieldIndex].key]);
             if (result == 0)
                 fieldIndex++;
             else
