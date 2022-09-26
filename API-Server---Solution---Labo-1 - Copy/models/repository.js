@@ -175,12 +175,13 @@ class Repository {
     search(filteredAndSortedObject,searchKeys){
         let temp =[]
        temp= filteredAndSortedObject.filter((item)=>{
-            for(let key in searchKeys){
-                if(item[key] == undefined || !this.filtre(item , searchKeys[key])){
-                    return false
+            let match = true;
+            searchKeys.forEach(searchKey=>{
+                if(item[searchKey.key] == undefined || !this.filtre(item , searchKey)){
+                    match = false;
                 }
-                return true
-            }
+            });
+            return match;
             
         })
         return temp;
